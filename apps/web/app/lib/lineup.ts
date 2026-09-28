@@ -231,9 +231,12 @@ function halfTargets(
     if (firstTotal === FIELD_SLOTS_PER_HALF) break;
     const fromFirst = firstTotal > FIELD_SLOTS_PER_HALF;
     const [from, to] = fromFirst ? [first, second] : [second, first];
-    const candidate = shuffled(movable, random).find(
-      (p) => from[p] > 0 && to[p] < SECTIONS_PER_HALF
-    );
+    // Move the slot to whoever has the least in the destination half. Taking
+    // the first willing player instead would let one girl collect a whole half
+    // while another sits out most of it.
+    const [candidate] = shuffled(movable, random)
+      .filter((p) => from[p] > 0 && to[p] < SECTIONS_PER_HALF)
+      .sort((a, b) => to[a] - to[b] || from[b] - from[a]);
     if (!candidate) break;
     from[candidate] -= 1;
     to[candidate] += 1;
@@ -257,15 +260,26 @@ function pickFieldPlayers(
   need: Record<string, number>,
   sectionsLeft: number,
   benchStreak: Record<string, number>,
+  playStreak: Record<string, number>,
   lineStreak: Record<string, number>,
   random: () => number
 ): string[] {
   const jitter = jitterFor(eligible, random);
-  const byPriority = [...eligible].sort((a, b) => {
+  // Only players who still owe sections this half are in the running; the rest
+  // have had their turn. There are always at least six, because the half's
+  // outstanding need always equals six times the sections remaining.
+  const owing = eligible.filter((player) => need[player] > 0);
+  const pool = owing.length >= FIELD_POSITIONS.length ? owing : eligible;
+
+  const byPriority = [...pool].sort((a, b) => {
+    // One signed number covers both sides of a sub: a rested player scores by
+    // how long they have sat, a player on the field by how long they have been
+    // out there. Highest first means the longest-serving girls come off next
+    // and the longest-waiting go on.
+    const turnA = benchStreak[a] - playStreak[a];
+    const turnB = benchStreak[b] - playStreak[b];
+    if (turnA !== turnB) return turnB - turnA;
     if (need[b] !== need[a]) return need[b] - need[a];
-    // Whoever has been sitting longest gets the next turn.
-    if (benchStreak[b] !== benchStreak[a])
-      return benchStreak[b] - benchStreak[a];
     // Otherwise rest whoever has been stuck in one line longest — a player only
     // ever changes line by coming off and being sent back on somewhere else.
     if (lineStreak[a] !== lineStreak[b]) return lineStreak[a] - lineStreak[b];
@@ -273,9 +287,7 @@ function pickFieldPlayers(
   });
 
   // Anyone who needs every remaining section has to be on now.
-  const locked = byPriority.filter(
-    (p) => need[p] >= sectionsLeft && need[p] > 0
-  );
+  const locked = byPriority.filter((p) => need[p] >= sectionsLeft);
   const chosen = locked.slice(0, FIELD_POSITIONS.length);
   for (const player of byPriority) {
     if (chosen.length === FIELD_POSITIONS.length) break;
@@ -443,7 +455,11 @@ export function generatePlan({
   const sections: Section[] = [];
   let previous: Record<Position, string> | null = null;
   const benchStreak: Record<string, number> = {};
-  for (const player of roster) benchStreak[player] = 0;
+  const playStreak: Record<string, number> = {};
+  for (const player of roster) {
+    benchStreak[player] = 0;
+    playStreak[player] = 0;
+  }
 
   for (const half of [1, 2] as const) {
     const goalie = half === 1 ? firstHalfGoalie : secondHalfGoalie;
@@ -456,6 +472,7 @@ export function generatePlan({
         need,
         SECTIONS_PER_HALF - i,
         benchStreak,
+        playStreak,
         state.lineStreak,
         random
       );
@@ -509,7 +526,9 @@ export function generatePlan({
               ? state.lineStreak[player] + 1
               : 1;
         state.lastPosition[player] = null;
-        benchStreak[player] = current.has(player) ? 0 : benchStreak[player] + 1;
+        const onNow = current.has(player);
+        benchStreak[player] = onNow ? 0 : benchStreak[player] + 1;
+        playStreak[player] = onNow ? playStreak[player] + 1 : 0;
       }
       for (const pos of POSITIONS) state.lastPosition[lineup[pos]] = pos;
       previous = lineup;
