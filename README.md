@@ -1,21 +1,3 @@
-# shadcn/ui monorepo template
+# Soccer Roster for Dynamos
 
-This is a React Router monorepo template with shadcn/ui.
-
-## Adding components
-
-To add components to your app, run the following command at the root of your `web` app:
-
-```bash
-pnpm dlx shadcn@latest add button -c apps/web
-```
-
-This will place the ui components in the `packages/ui/src/components` directory.
-
-## Using components
-
-To use the components in your app, import them from the `ui` package.
-
-```tsx
-import { Button } from "@workspace/ui/components/button";
-```
+[![Netlify Status](https://api.netlify.com/api/v1/badges/91ddc5ba-e359-46e5-a888-dcc23cd27ead/deploy-status)](https://app.netlify.com/projects/dynamos-soccer-roster/deploys)
