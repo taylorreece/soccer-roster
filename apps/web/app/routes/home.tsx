@@ -126,8 +126,8 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-svh bg-background text-foreground">
-      <div className="mx-auto flex max-w-7xl flex-col gap-6 p-6 lg:flex-row">
+    <div className="flex min-h-svh flex-col bg-background text-foreground">
+      <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 p-6 lg:flex-row">
         <Sidebar
           presentPlayers={presentPlayers}
           onTogglePlayer={togglePlayer}
@@ -159,7 +159,29 @@ export default function Home() {
           )}
         </main>
       </div>
+      <BuildStamp />
     </div>
+  );
+}
+
+/** Which commit this bundle came from, so a deploy can be identified on sight. */
+function BuildStamp() {
+  return (
+    <footer className="mx-auto w-full max-w-7xl px-6 pb-4 text-xs text-muted-foreground">
+      build{" "}
+      {__BUILD__.url ? (
+        <a
+          className="font-mono underline-offset-2 hover:underline"
+          href={__BUILD__.url}
+          target="_blank"
+          rel="noreferrer"
+        >
+          {__BUILD__.ref}
+        </a>
+      ) : (
+        <span className="font-mono">{__BUILD__.ref}</span>
+      )}
+    </footer>
   );
 }
 
